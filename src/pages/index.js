@@ -1,22 +1,38 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import CountdownTimer from '../components/CountdownTimer';
 import GlassCard from '../components/GlassCard';
-import MomentCarousel from '../components/MomentCarousel';
 import UploadMoment from '../components/UploadMoment';
-import { supabase } from '../lib/supabase';
+
+// Dynamically import MomentCarousel to prevent SSR/prerender errors
+const MomentCarousel = dynamic(() => import('../components/MomentCarousel'), {
+  ssr: false,
+  loading: () => <p>Loading moments...</p>,
+});
 
 const Home = () => {
   const [moments, setMoments] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchMoments = async () => {
-      const { data, error } = await supabase
-        .storage
-        .from('moments')
-        .list();
+      try {
+        // Only import supabase on the client side
+        const { supabase } = await import('../lib/supabase');
+        const { data, error } = await supabase
+          .storage
+          .from('moments')
+          .list();
 
-      if (!error) {
-        setMoments(data);
+        if (!error && data) {
+          setMoments(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch moments:', err);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -29,7 +45,7 @@ const Home = () => {
         <CountdownTimer targetDate={new Date('2027-03-14T00:00:00Z')} />
       </GlassCard>
       <GlassCard>
-        <MomentCarousel moments={moments} />
+        {loading ? <p>Loading moments...</p> : <MomentCarousel moments={moments} />}
       </GlassCard>
       <GlassCard>
         <UploadMoment />
